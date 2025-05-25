@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Attendance – Arise HVAC</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: #add8e6;
+      padding: 20px 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    label {
+      margin-top: 12px;
+      display: block;
+      font-weight: bold;
+    }
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 6px;
+      margin-bottom: 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .record {
+      margin-bottom: 10px;
+    }
+    .mark-btn {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .mark-btn:hover {
+      opacity: 0.9;
+    }
+    #bossPanel {
+      display: none;
+      margin-top: 20px;
+      background: #fff;
+      padding: 10px;
+      border-radius: 6px;
+    }
+    small {
+      display: block;
+      margin-top: -10px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Arise HVAC Solutions</h1>
+    <h2>Attendance Form</h2>
+
+    <form id="attendanceForm">
+      <label>ID No:</label>
+      <input type="text" id="idno" required />
+
+      <label>Site:</label>
+      <input type="text" id="site" required />
+
+      <label>Mark Entry:</label>
+      <button type="button" class="mark-btn" onclick="markTime('in')">Mark Entry</button>
+      <div class="record">Time: <span id="inTimeDisplay">--:--</span></div>
+      <div class="record">Coordinates: <span id="inLocDisplay">--</span></div>
+
+      <label>Mark Exit:</label>
+      <button type="button" class="mark-btn" onclick="markTime('out')">Mark Exit</button>
+      <div class="record">Time: <span id="outTimeDisplay">--:--</span></div>
+      <div class="record">Coordinates: <span id="outLocDisplay">--</span></div>
+
+      <small>Note: Location access is required. Open in Chrome/Safari (not WhatsApp/Instagram).</small>
+
+      <label>Type of Work:</label>
+      <select id="workType" required>
+        <option value="" disabled selected>Select Work Type</option>
+        <option>Installation</option><option>AMC</option><option>Breakdown</option>
+        <option>CMC</option><option>Project</option><option>Onetime</option>
+      </select>
+
+      <label>Department:</label>
+      <select id="dept" required>
+        <option value="" disabled selected>Select Department</option>
+        <option>H70</option><option>D80</option><option>M10</option>
+        <option>L20</option><option>P60</option><option>A200</option><option>A100</option><option>NA</option>
+      </select>
+
+      <label>Report Summary:</label>
+      <input type="text" id="report" />
+
+      <label>Parts Required:</label>
+      <input type="text" id="parts" />
+
+      <button type="submit">Submit</button>
+    </form>
+
+    <!-- Boss Panel -->
+    <div id="bossPanel">
+      <h3>Boss Panel</h3>
+      <button onclick="downloadExcel()">📥 Download Excel</button>
+      <pre id="logOutput"></pre>
+    </div>
+
+    <!-- Secret Code Entry -->
+    <div style="margin-top: 20px;">
+      <input type="password" placeholder="Enter boss code" id="bossCode" />
+      <button onclick="checkBossCode()">Unlock Boss Mode</button>
+    </div>
+  </div>
+
+  <script>
+    function formatTime(date) {
+      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    }
+
+    function markTime(type) {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser.");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const time = formatTime(new Date());
+          const coords = `${pos.coords.latitude.toFixed(6)},${pos.coords.longitude.toFixed(6)}`;
+          document.getElementById(type + "TimeDisplay").textContent = time;
+          document.getElementById(type + "LocDisplay").textContent = coords;
+          localStorage.setItem(type + "TimeTemp", time);
+          localStorage.setItem(type + "LocTemp", coords);
+        },
+        err => {
+          console.error("Geolocation error:", err);
+          let msg = "❌ Location Error: " + err.message + "\n\nFix tips:\n";
+          msg += "- Allow location when prompted\n";
+          msg += "- Open in Chrome/Safari\n";
+          msg += "- Don't use Instagram or WhatsApp browser\n";
+          msg += "- Enable location for browser in device settings";
+          alert(msg);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+
+    document.getElementById('attendanceForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const record = {
+        Date: new Date().toLocaleDateString(),
+        ID: document.getElementById('idno').value,
+        Site: document.getElementById('site').value,
+        InTime: localStorage.getItem("inTimeTemp") || "--",
+        InLoc: localStorage.getItem("inLocTemp") || "--",
+        OutTime: localStorage.getItem("outTimeTemp") || "--",
+        OutLoc: localStorage.getItem("outLocTemp") || "--",
+        WorkType: document.getElementById('workType').value,
+        Department: document.getElementById('dept').value,
+        Report: document.getElementById('report').value,
+        Parts: document.getElementById('parts').value
+      };
+
+      let entries = JSON.parse(localStorage.getItem("attendanceData") || "[]");
+      entries.push(record);
+      localStorage.setItem("attendanceData", JSON.stringify(entries));
+
+      alert("✅ Attendance submitted!");
+      document.getElementById('attendanceForm').reset();
+      localStorage.removeItem("inTimeTemp");
+      localStorage.removeItem("inLocTemp");
+      localStorage.removeItem("outTimeTemp");
+      localStorage.removeItem("outLocTemp");
+      document.getElementById("inTimeDisplay").textContent = "--:--";
+      document.getElementById("outTimeDisplay").textContent = "--:--";
+      document.getElementById("inLocDisplay").textContent = "--";
+      document.getElementById("outLocDisplay").textContent = "--";
+    });
+
+    function checkBossCode() {
+      const code = document.getElementById("bossCode").value;
+      if (code === "arise123") {
+        document.getElementById("bossPanel").style.display = "block";
+        showRecords();
+      } else {
+        alert("❌ Incorrect code.");
+      }
+    }
+
+    function showRecords() {
+      const data = JSON.parse(localStorage.getItem("attendanceData") || "[]");
+      let text = data.map((d, i) => `${i+1}. ${d.ID} @ ${d.Site} | In: ${d.InTime} (${d.InLoc})`).join("\n");
+      document.getElementById("logOutput").textContent = text || "No records yet.";
+    }
+
+    function downloadExcel() {
+      const data = JSON.parse(localStorage.getItem("attendanceData") || "[]");
+      if (data.length === 0) return alert("No data to export.");
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+      XLSX.writeFile(wb, "attendance.xlsx");
+    }
+  </script>
+</body>
+</html>
