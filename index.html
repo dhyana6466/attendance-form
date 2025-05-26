@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <title>Attendance – Arise HVAC</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -47,18 +46,6 @@
     .mark-btn:hover {
       opacity: 0.9;
     }
-    #bossPanel {
-      display: none;
-      margin-top: 20px;
-      background: #fff;
-      padding: 10px;
-      border-radius: 6px;
-    }
-    small {
-      display: block;
-      margin-top: -10px;
-      color: #333;
-    }
   </style>
 </head>
 <body>
@@ -83,8 +70,6 @@
       <div class="record">Time: <span id="outTimeDisplay">--:--</span></div>
       <div class="record">Coordinates: <span id="outLocDisplay">--</span></div>
 
-      <small>Note: Location access is required. Open in Chrome/Safari (not WhatsApp/Instagram).</small>
-
       <label>Type of Work:</label>
       <select id="workType" required>
         <option value="" disabled selected>Select Work Type</option>
@@ -107,19 +92,6 @@
 
       <button type="submit">Submit</button>
     </form>
-
-    <!-- Boss Panel -->
-    <div id="bossPanel">
-      <h3>Boss Panel</h3>
-      <button onclick="downloadExcel()">📥 Download Excel</button>
-      <pre id="logOutput"></pre>
-    </div>
-
-    <!-- Secret Code Entry -->
-    <div style="margin-top: 20px;">
-      <input type="password" placeholder="Enter boss code" id="bossCode" />
-      <button onclick="checkBossCode()">Unlock Boss Mode</button>
-    </div>
   </div>
 
   <script>
@@ -144,12 +116,7 @@
         },
         err => {
           console.error("Geolocation error:", err);
-          let msg = "❌ Location Error: " + err.message + "\n\nFix tips:\n";
-          msg += "- Allow location when prompted\n";
-          msg += "- Open in Chrome/Safari\n";
-          msg += "- Don't use Instagram or WhatsApp browser\n";
-          msg += "- Enable location for browser in device settings";
-          alert(msg);
+          alert("❌ Location Error: " + err.message + "\nPlease allow location access.");
         },
         { enableHighAccuracy: true, timeout: 10000 }
       );
@@ -172,46 +139,30 @@
         Parts: document.getElementById('parts').value
       };
 
-      let entries = JSON.parse(localStorage.getItem("attendanceData") || "[]");
-      entries.push(record);
-      localStorage.setItem("attendanceData", JSON.stringify(entries));
-
-      alert("✅ Attendance submitted!");
-      document.getElementById('attendanceForm').reset();
-      localStorage.removeItem("inTimeTemp");
-      localStorage.removeItem("inLocTemp");
-      localStorage.removeItem("outTimeTemp");
-      localStorage.removeItem("outLocTemp");
-      document.getElementById("inTimeDisplay").textContent = "--:--";
-      document.getElementById("outTimeDisplay").textContent = "--:--";
-      document.getElementById("inLocDisplay").textContent = "--";
-      document.getElementById("outLocDisplay").textContent = "--";
+      // 🔄 Submit to local Node.js server
+      fetch("https://attendance-server-lxnw.onrender.com", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(record)
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert("✅ " + data.message);
+        document.getElementById('attendanceForm').reset();
+        document.getElementById("inTimeDisplay").textContent = "--:--";
+        document.getElementById("outTimeDisplay").textContent = "--:--";
+        document.getElementById("inLocDisplay").textContent = "--";
+        document.getElementById("outLocDisplay").textContent = "--";
+        localStorage.removeItem("inTimeTemp");
+        localStorage.removeItem("outTimeTemp");
+        localStorage.removeItem("inLocTemp");
+        localStorage.removeItem("outLocTemp");
+      })
+      .catch(err => {
+        console.error("Submit Error:", err);
+        alert("❌ Failed to save data: " + err.message);
+      });
     });
-
-    function checkBossCode() {
-      const code = document.getElementById("bossCode").value;
-      if (code === "arise123") {
-        document.getElementById("bossPanel").style.display = "block";
-        showRecords();
-      } else {
-        alert("❌ Incorrect code.");
-      }
-    }
-
-    function showRecords() {
-      const data = JSON.parse(localStorage.getItem("attendanceData") || "[]");
-      let text = data.map((d, i) => `${i+1}. ${d.ID} @ ${d.Site} | In: ${d.InTime} (${d.InLoc})`).join("\n");
-      document.getElementById("logOutput").textContent = text || "No records yet.";
-    }
-
-    function downloadExcel() {
-      const data = JSON.parse(localStorage.getItem("attendanceData") || "[]");
-      if (data.length === 0) return alert("No data to export.");
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Attendance");
-      XLSX.writeFile(wb, "attendance.xlsx");
-    }
   </script>
 </body>
 </html>
