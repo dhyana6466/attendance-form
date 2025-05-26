@@ -140,9 +140,12 @@
       };
 
       // 🔄 Submit to local Node.js server
-      fetch("https://attendance-server-lxnw.onrender.com", {
+      fetch("https://attendance-server-lxnw.onrender.com/submit", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-secret-key": "arise123"
+        },
         body: JSON.stringify(record)
       })
       .then(res => res.json())
